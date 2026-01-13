@@ -6,50 +6,44 @@ services:
     container_name: devine-backend
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${SPRING_PORT}:${SPRING_PORT}"
     env_file:
       - .env
     environment:
       - TZ=Asia/Seoul
-      - JAVA_OPTS=-Xmx512m -Xms256m
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:${SPRING_PORT}/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 90s
     networks:
       - devine-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    volumes:
+      - ./logs/backend:/app/logs
 
   ai:
     image: ${DOCKER_USERNAME}/devine-ai:${DOCKER_IMAGE_TAG:-latest}
     container_name: devine-ai
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${FAST_PORT}:${FAST_PORT}"
     env_file:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
       - TZ=Asia/Seoul
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${FAST_PORT}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     networks:
       - devine-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    volumes:
+      - ./logs/ai:/app/logs
 
 networks:
   devine-network:
