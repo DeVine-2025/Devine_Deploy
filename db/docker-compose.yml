@@ -22,23 +22,23 @@ services:
       retries: 3
       start_period: 10s
 
-  redis:
-    image: redis:7.2-alpine
-    container_name: devine-redis
+  valkey:
+    image: valkey/valkey:9.0-alpine
+    container_name: devine-valkey
     restart: unless-stopped
     command: >
-      redis-server
+      valkey-server
       --appendonly yes
       --requirepass ${REDIS_PASSWORD}
       --maxmemory-policy allkeys-lru
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
     volumes:
-      - redis_data:/data
+      - valkey_data:/data
     networks:
       - devine-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "valkey-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -50,4 +50,4 @@ networks:
 
 volumes:
   postgres_data:
-  redis_data:
+  valkey_data:
