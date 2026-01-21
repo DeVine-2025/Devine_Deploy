@@ -20,3 +20,6 @@ Thumbs.db
 # 임시 파일
 *.tmp
 *.temp
+
+# 인증서
+ssl

@@ -1,12 +1,26 @@
 version: '3.8'
 
 services:
+  nginx:
+    image: nginx:latest
+    container_name: devine-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d  # Nginx 설정 파일
+      - ./nginx/ssl:/etc/nginx/ssl        # SSL 인증서 파일
+      - ./nginx/log:/var/log/nginx        # 로그 파일
+    networks:
+      - devine-network
+
   backend:
     image: ${DOCKER_USERNAME}/devine-backend:${DOCKER_IMAGE_TAG:-latest}
     container_name: devine-backend
     restart: unless-stopped
-    ports:
-      - "${SPRING_PORT}:${SPRING_PORT}"
+    expose:
+      - "${SPRING_PORT}"
     env_file:
       - .env
     environment:
@@ -27,8 +41,8 @@ services:
     image: ${DOCKER_USERNAME}/devine-ai:${DOCKER_IMAGE_TAG:-latest}
     container_name: devine-ai
     restart: unless-stopped
-    ports:
-      - "${FAST_PORT}:${FAST_PORT}"
+    expose:
+      - "${FAST_PORT}"
     env_file:
       - .env
     environment:
