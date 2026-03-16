@@ -3,41 +3,34 @@
 # DeVine Blue/Green 무중단 배포 스크립트
 #
 # 사용법:
-#   ./deploy.sh <service> <image_tag>
+#   ./deploy.sh <backend|ai> <image_tag>
 #   ./deploy.sh backend abc123def
 #   ./deploy.sh ai abc123def
 #
 set -euo pipefail
 
-SERVICE="$1"          # "backend" 또는 "ai"
-NEW_TAG="$2"          # Docker 이미지 태그 (commit SHA)
-DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
-SLOT_FILE="${DEPLOY_DIR}/.active-slot-${SERVICE}"
+# ─── 입력 검증 ───────────────────────────────────────
+SERVICE="${1:?Usage: $0 <backend|ai> <image_tag>}"
+NEW_TAG="${2:?Usage: $0 <backend|ai> <image_tag>}"
 
+if [[ "$SERVICE" != "backend" && "$SERVICE" != "ai" ]]; then
+  echo "Error: SERVICE must be 'backend' or 'ai', got '${SERVICE}'"
+  exit 1
+fi
+
+DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DEPLOY_DIR"
 
-# ─────────────────────────────────────────────
-# 1. 현재 활성 슬롯 확인
-# ─────────────────────────────────────────────
-if [ -f "$SLOT_FILE" ]; then
-  CURRENT=$(cat "$SLOT_FILE")
-else
-  # 초기 상태: 실행 중인 컨테이너로 판단
-  if docker ps --format '{{.Names}}' | grep -q "devine-${SERVICE}-blue"; then
-    CURRENT=blue
-  elif docker ps --format '{{.Names}}' | grep -q "devine-${SERVICE}-green"; then
-    CURRENT=green
-  else
-    CURRENT=none
-  fi
-fi
+# ─── .env 로드 ───────────────────────────────────────
+set -a; source .env; set +a
+: "${SPRING_PORT:?SPRING_PORT is not set in .env}"
+: "${FAST_PORT:?FAST_PORT is not set in .env}"
+: "${DOCKER_USERNAME:?DOCKER_USERNAME is not set in .env}"
 
-# 다음 슬롯 결정
-if [ "$CURRENT" = "blue" ]; then
-  NEXT=green
-else
-  NEXT=blue
-fi
+# ─── 슬롯 결정 ──────────────────────────────────────
+SLOT_FILE=".active-slot-${SERVICE}"
+CURRENT=$(cat "$SLOT_FILE" 2>/dev/null || echo "none")
+NEXT=$([ "$CURRENT" = "blue" ] && echo "green" || echo "blue")
 
 echo "============================================"
 echo "  DeVine ${SERVICE} Blue/Green Deploy"
@@ -45,30 +38,29 @@ echo "  Current: ${CURRENT} → Next: ${NEXT}"
 echo "  Image tag: ${NEW_TAG}"
 echo "============================================"
 
-# ─────────────────────────────────────────────
-# 2. 새 슬롯 이미지 Pull & 시작
-# ─────────────────────────────────────────────
-TAG_VAR="${SERVICE^^}_${NEXT^^}_TAG"  # e.g. BACKEND_GREEN_TAG
-export "$TAG_VAR"="$NEW_TAG"
+# ─── 이미지 태그 설정 ────────────────────────────────
+if   [ "$SERVICE-$NEXT" = "backend-blue"  ]; then export BACKEND_BLUE_TAG="$NEW_TAG"
+elif [ "$SERVICE-$NEXT" = "backend-green" ]; then export BACKEND_GREEN_TAG="$NEW_TAG"
+elif [ "$SERVICE-$NEXT" = "ai-blue"       ]; then export AI_BLUE_TAG="$NEW_TAG"
+else                                               export AI_GREEN_TAG="$NEW_TAG"
+fi
 
+# ─── 새 슬롯 Pull & 시작 ─────────────────────────────
 echo "[Step 1] Pulling new image..."
 docker compose --profile "${SERVICE}-${NEXT}" pull "${SERVICE}-${NEXT}"
 
 echo "[Step 2] Starting ${SERVICE}-${NEXT}..."
 docker compose --profile "${SERVICE}-${NEXT}" up -d "${SERVICE}-${NEXT}"
 
-# ─────────────────────────────────────────────
-# 3. 헬스체크 대기
-# ─────────────────────────────────────────────
+# ─── 헬스체크 대기 ──────────────────────────────────
 CONTAINER="devine-${SERVICE}-${NEXT}"
-TIMEOUT=180
-INTERVAL=3
+TIMEOUT=200
 
 echo "[Step 3] Waiting for ${CONTAINER} to be healthy (timeout: ${TIMEOUT}s)..."
 
-while [ $TIMEOUT -gt 0 ]; do
+ELAPSED=0
+while [ $ELAPSED -lt $TIMEOUT ]; do
   STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo "starting")
-
   case "$STATUS" in
     healthy)
       echo "  ✓ ${CONTAINER} is healthy!"
@@ -76,96 +68,66 @@ while [ $TIMEOUT -gt 0 ]; do
       ;;
     unhealthy)
       echo "  ✗ ${CONTAINER} is unhealthy!"
-      echo ""
-      echo "--- Container Logs (last 50 lines) ---"
       docker logs --tail=50 "$CONTAINER"
-      echo "--------------------------------------"
-      echo ""
-      echo "[Rollback] Removing failed container..."
-      docker compose --profile "${SERVICE}-${NEXT}" down
+      docker stop "$CONTAINER" && docker rm -f "$CONTAINER"
       exit 1
       ;;
     *)
-      echo "  ... status: ${STATUS} (remaining: ${TIMEOUT}s)"
-      sleep $INTERVAL
-      TIMEOUT=$((TIMEOUT - INTERVAL))
+      echo "  ... status: ${STATUS} (${ELAPSED}/${TIMEOUT}s)"
+      sleep 3
+      ELAPSED=$((ELAPSED + 3))
       ;;
   esac
 done
 
-if [ $TIMEOUT -le 0 ]; then
+if [ $ELAPSED -ge $TIMEOUT ]; then
   echo "  ✗ Health check timeout!"
-  echo ""
-  echo "--- Container Logs (last 50 lines) ---"
   docker logs --tail=50 "$CONTAINER"
-  echo "--------------------------------------"
-  echo ""
-  echo "[Rollback] Removing timed-out container..."
-  docker compose --profile "${SERVICE}-${NEXT}" down
+  docker stop "$CONTAINER" && docker rm -f "$CONTAINER"
   exit 1
 fi
 
-# ─────────────────────────────────────────────
-# 4. Nginx upstream 전환 (무중단 핵심)
-# ─────────────────────────────────────────────
+# ─── Nginx upstream 전환 (원자적) ─────────────────────
 echo "[Step 4] Switching Nginx upstream to ${SERVICE}-${NEXT}..."
 
-# 각 서비스의 활성 슬롯 결정
-if [ "$SERVICE" = "backend" ]; then
-  BACKEND_ACTIVE="$NEXT"
-  AI_ACTIVE=$(cat "${DEPLOY_DIR}/.active-slot-ai" 2>/dev/null || echo "blue")
-else
-  BACKEND_ACTIVE=$(cat "${DEPLOY_DIR}/.active-slot-backend" 2>/dev/null || echo "blue")
-  AI_ACTIVE="$NEXT"
-fi
+BACKEND_ACTIVE=$([ "$SERVICE" = "backend" ] && echo "$NEXT" || cat ".active-slot-backend" 2>/dev/null || echo "blue")
+AI_ACTIVE=$([ "$SERVICE" = "ai"           ] && echo "$NEXT" || cat ".active-slot-ai"      2>/dev/null || echo "blue")
 
-# upstream.conf 재생성
-cat > "${DEPLOY_DIR}/nginx/conf.d/upstream.conf" <<EOF
+cat > nginx/conf.d/upstream.conf.tmp <<EOF
 # Auto-generated by deploy.sh - $(date '+%Y-%m-%d %H:%M:%S')
 # Active slots: backend=${BACKEND_ACTIVE}, ai=${AI_ACTIVE}
 
-upstream backend {
-    server devine-backend-${BACKEND_ACTIVE}:${SPRING_PORT:-8080};
-}
-
-upstream ai {
-    server devine-ai-${AI_ACTIVE}:${FAST_PORT:-8000};
-}
+set \$backend "devine-backend-${BACKEND_ACTIVE}:${SPRING_PORT}";
+set \$ai      "devine-ai-${AI_ACTIVE}:${FAST_PORT}";
 EOF
 
-# Nginx 설정 검증 후 reload
+mv nginx/conf.d/upstream.conf nginx/conf.d/upstream.conf.bak
+mv nginx/conf.d/upstream.conf.tmp nginx/conf.d/upstream.conf
+
 if ! docker exec devine-nginx nginx -t 2>&1; then
-  echo "  ✗ Nginx config test failed! Keeping current upstream."
-  docker compose --profile "${SERVICE}-${NEXT}" down
+  echo "  ✗ Nginx config test failed! Restoring previous upstream.conf..."
+  mv nginx/conf.d/upstream.conf.bak nginx/conf.d/upstream.conf
+  docker stop "$CONTAINER" && docker rm -f "$CONTAINER"
   exit 1
 fi
 
 docker exec devine-nginx nginx -s reload
 echo "  ✓ Nginx reloaded successfully"
 
-# ─────────────────────────────────────────────
-# 5. 활성 슬롯 기록
-# ─────────────────────────────────────────────
+# ─── 활성 슬롯 기록 (Nginx reload 직후) ─────────────────
 echo "$NEXT" > "$SLOT_FILE"
 
-# ─────────────────────────────────────────────
-# 6. 기존 컨테이너 종료 (graceful)
-# ─────────────────────────────────────────────
+# ─── 구 컨테이너 종료 ────────────────────────────────
 if [ "$CURRENT" != "none" ]; then
-  echo "[Step 5] Waiting 10s for in-flight requests to complete..."
+  echo "[Step 5] Waiting 10s for in-flight requests..."
   sleep 10
-
   echo "[Step 6] Stopping old container (${SERVICE}-${CURRENT})..."
-  docker compose --profile "${SERVICE}-${CURRENT}" down
+  docker stop "devine-${SERVICE}-${CURRENT}" || true && docker rm -f "devine-${SERVICE}-${CURRENT}" || true
   echo "  ✓ Old container stopped"
 fi
 
-# ─────────────────────────────────────────────
-# 7. 이미지 정리
-# ─────────────────────────────────────────────
-echo "[Step 7] Cleaning up unused images..."
-docker image prune -f
-echo "  ✓ Cleanup done"
+# ─── Dangling 이미지 정리 ─────────────────────────────
+docker image prune -f --filter "dangling=true"
 
 echo ""
 echo "============================================"

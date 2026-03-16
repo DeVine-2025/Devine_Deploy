@@ -1,6 +1,6 @@
 services:
   nginx:
-    image: nginx:latest
+    image: nginx:1.27-alpine
     container_name: devine-nginx
     restart: unless-stopped
     ports:
@@ -13,9 +13,10 @@ services:
     networks:
       - devine-network
 
-  backend:
-    image: ${DOCKER_USERNAME}/devine-backend:${DOCKER_IMAGE_TAG:-latest}
-    container_name: devine-backend
+  # ===== Backend Blue/Green =====
+  backend-blue:
+    image: ${DOCKER_USERNAME}/devine-backend:${BACKEND_BLUE_TAG:-latest}
+    container_name: devine-backend-blue
     restart: unless-stopped
     expose:
       - "${SPRING_PORT}"
@@ -26,18 +27,43 @@ services:
       - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:${SPRING_PORT}/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 90s
     networks:
       - devine-network
     volumes:
       - ./logs/backend:/app/logs
+    profiles: ["backend-blue"]
 
-  ai:
-    image: ${DOCKER_USERNAME}/devine-ai:${DOCKER_IMAGE_TAG:-latest}
-    container_name: devine-ai
+  backend-green:
+    image: ${DOCKER_USERNAME}/devine-backend:${BACKEND_GREEN_TAG:-latest}
+    container_name: devine-backend-green
+    restart: unless-stopped
+    expose:
+      - "${SPRING_PORT}"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:${SPRING_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    networks:
+      - devine-network
+    volumes:
+      - ./logs/backend:/app/logs
+    profiles: ["backend-green"]
+
+  # ===== AI Blue/Green =====
+  ai-blue:
+    image: ${DOCKER_USERNAME}/devine-ai:${AI_BLUE_TAG:-latest}
+    container_name: devine-ai-blue
     restart: unless-stopped
     expose:
       - "${FAST_PORT}"
@@ -48,14 +74,38 @@ services:
       - TZ=Asia/Seoul
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${FAST_PORT}/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 60s
     networks:
       - devine-network
     volumes:
       - ./logs/ai:/app/logs
+    profiles: ["ai-blue"]
+
+  ai-green:
+    image: ${DOCKER_USERNAME}/devine-ai:${AI_GREEN_TAG:-latest}
+    container_name: devine-ai-green
+    restart: unless-stopped
+    expose:
+      - "${FAST_PORT}"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Seoul
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${FAST_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - devine-network
+    volumes:
+      - ./logs/ai:/app/logs
+    profiles: ["ai-green"]
 
 networks:
   devine-network:

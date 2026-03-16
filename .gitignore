@@ -8,6 +8,11 @@
 
 # 로그 파일
 *.log
+log
+logs
+
+# 배포 런타임 파일
+service/.active-slot-*
 
 # 백업 파일
 *.backup
@@ -23,3 +28,6 @@ Thumbs.db
 
 # 인증서
 ssl
+
+# claude
+.claude
