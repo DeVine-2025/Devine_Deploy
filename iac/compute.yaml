@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DeVine Compute - EC2 Instances, EIP, KeyPair'
+
+Parameters:
+  KeyName:
+    Type: String
+  PublicSubnet1Id:
+    Type: String
+  PublicSubnet2Id:
+    Type: String
+  PrivateSubnetDbId:
+    Type: String
+  AppSecurityGroupId:
+    Type: String
+  DbSecurityGroupId:
+    Type: String
+  InstanceProfileName:
+    Type: String
+
+Resources:
+  ProdEIP:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: devine-prod-eip
+
+  DevEIP:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: devine-dev-eip
+
+  ProdInstance:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0b9e484ef3edf4095
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet1Id
+      SecurityGroupIds:
+        - !Ref AppSecurityGroupId
+      IamInstanceProfile: !Ref InstanceProfileName
+      EbsOptimized: true
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 30
+            Iops: 3000
+            DeleteOnTermination: true
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 2
+        HttpEndpoint: enabled
+      Tags:
+        - Key: Name
+          Value: devine-prod-instance
+      CreditSpecification:
+        CPUCredits: unlimited
+
+  DevInstance:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0f183df761b41084a
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet2Id
+      SecurityGroupIds:
+        - !Ref AppSecurityGroupId
+      IamInstanceProfile: !Ref InstanceProfileName
+      EbsOptimized: true
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 30
+            Iops: 3000
+            DeleteOnTermination: true
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 2
+        HttpEndpoint: enabled
+      Tags:
+        - Key: Name
+          Value: devine-dev-instance
+      CreditSpecification:
+        CPUCredits: unlimited
+
+  PrivateInstance:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0dd2e0d9b3702890b
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PrivateSubnetDbId
+      SecurityGroupIds:
+        - !Ref DbSecurityGroupId
+      IamInstanceProfile: !Ref InstanceProfileName
+      EbsOptimized: true
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 8
+            Iops: 3000
+            DeleteOnTermination: true
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 2
+        HttpEndpoint: enabled
+      Tags:
+        - Key: Name
+          Value: devine-private-instance
+      CreditSpecification:
+        CPUCredits: unlimited
+
+  ProdEIPAssociation:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ProdEIP.AllocationId
+      InstanceId: !Ref ProdInstance
+
+  DevEIPAssociation:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt DevEIP.AllocationId
+      InstanceId: !Ref DevInstance
+
+  DevineKeyPair:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: devine-key
+      KeyType: rsa
+
+Outputs:
+  ProdInstanceId:
+    Value: !Ref ProdInstance
+  DevInstanceId:
+    Value: !Ref DevInstance
+  PrivateInstanceId:
+    Value: !Ref PrivateInstance
+  ProdPublicIP:
+    Value: !Ref ProdEIP
+  DevPublicIP:
+    Value: !Ref DevEIP

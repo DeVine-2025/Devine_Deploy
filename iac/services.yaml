@@ -1,0 +1,204 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DeVine Services - S3, CloudFront, Route53, CloudWatch'
+
+Resources:
+  # --- S3 ---
+  PublicBucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: devine-public-bucket
+
+  PrivateBucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: devine-private-bucket
+
+  # --- S3 Bucket Policies ---
+  PublicBucketPolicy:
+    DeletionPolicy: Retain
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PublicBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceHTTPS
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt PublicBucket.Arn
+              - !Sub '${PublicBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyAccessExceptServerAndAdminAndCloudFront
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt PublicBucket.Arn
+              - !Sub '${PublicBucket.Arn}/*'
+            Condition:
+              StringNotLike:
+                aws:PrincipalArn:
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/my-app-s3-server-role'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/devine-s3-role'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-admin'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-user'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-s3-only'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/cloudfront.amazonaws.com/AWSServiceRoleForCloudFrontLogger'
+              ArnNotLike:
+                aws:SourceArn:
+                  - !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${S3Distribution}'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-s3-only'
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${PublicBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${S3Distribution}'
+
+  PrivateBucketPolicy:
+    DeletionPolicy: Retain
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PrivateBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceHTTPS
+            Effect: Deny
+            Principal: '*'
+            Action: s3:GetObject
+            Resource:
+              - !GetAtt PrivateBucket.Arn
+              - !Sub '${PrivateBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyAccessExceptServerAndAdmin
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt PrivateBucket.Arn
+              - !Sub '${PrivateBucket.Arn}/*'
+            Condition:
+              StringNotLike:
+                aws:PrincipalArn:
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/my-app-s3-server-role'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/devine-s3-role'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-admin'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-user'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+
+  # --- CloudFront OAC ---
+  CloudFrontOACForS3:
+    DeletionPolicy: Retain
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: oac-devine-public-bucket.s3.ap-northeast-2.amazonaws-mle9xd84bkr
+        SigningBehavior: always
+        SigningProtocol: sigv4
+        OriginAccessControlOriginType: s3
+
+  CloudFrontOACGeneral:
+    DeletionPolicy: Retain
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: s3-oac-devine
+        SigningBehavior: always
+        SigningProtocol: sigv4
+        OriginAccessControlOriginType: s3
+
+  # --- CloudFront Distributions ---
+  EC2Distribution:
+    DeletionPolicy: Retain
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        PriceClass: PriceClass_All
+        Origins:
+          - Id: devine-prod-origin
+            DomainName: ec2-43-200-143-43.ap-northeast-2.compute.amazonaws.com
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            ConnectionTimeout: 10
+            ConnectionAttempts: 3
+        DefaultCacheBehavior:
+          TargetOriginId: devine-prod-origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 83da9c7e-98b4-4e11-a168-04f0df8e2c65
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: none
+
+  S3Distribution:
+    DeletionPolicy: Retain
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        PriceClass: PriceClass_All
+        Origins:
+          - Id: devine-public-bucket-origin
+            DomainName: !GetAtt PublicBucket.RegionalDomainName
+            OriginAccessControlId: !Ref CloudFrontOACForS3
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            ConnectionTimeout: 10
+            ConnectionAttempts: 3
+        DefaultCacheBehavior:
+          TargetOriginId: devine-public-bucket-origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: none
+
+  # --- Route 53 ---
+  HostedZone:
+    DeletionPolicy: Retain
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: devine.kr.
+
+  # --- CloudWatch ---
+  ProdLogGroup:
+    DeletionPolicy: Retain
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: devine-prod
+      LogGroupClass: STANDARD
+      RetentionInDays: 14
+
+Outputs:
+  EC2DistributionDomainName:
+    Value: !GetAtt EC2Distribution.DomainName
+  S3DistributionDomainName:
+    Value: !GetAtt S3Distribution.DomainName

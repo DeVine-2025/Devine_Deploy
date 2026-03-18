@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DeVine Security - Security Groups'
+
+Parameters:
+  Environment:
+    Type: String
+  VpcId:
+    Type: String
+
+Resources:
+  AppSecurityGroup:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App servers - HTTP/HTTPS inbound, internal 8080
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP from internet
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS from internet
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH temporary - remove after team onboarding
+      Tags:
+        - Key: Name
+          Value: !Sub devine-app-sg-${Environment}
+
+  AppInternalIngress:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+      Description: Internal app communication
+
+  DbSecurityGroup:
+    DeletionPolicy: Retain
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DB server - access only from App SG
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+          Description: PostgreSQL from App SG
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+          Description: Redis from App SG
+      Tags:
+        - Key: Name
+          Value: !Sub devine-db-sg-${Environment}
+
+
+Outputs:
+  AppSecurityGroupId:
+    Value: !Ref AppSecurityGroup
+    Export:
+      Name: !Sub devine-${Environment}-app-sg
+  DbSecurityGroupId:
+    Value: !Ref DbSecurityGroup
+    Export:
+      Name: !Sub devine-${Environment}-db-sg

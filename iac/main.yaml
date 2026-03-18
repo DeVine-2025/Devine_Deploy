@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  DeVine 프로덕션 인프라 - Nested Stack (2026-02-27)
+  network / security / iam / compute / services 로 분리
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, dev]
+
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.0.2.0/24
+
+  PrivateSubnetApp1Cidr:
+    Type: String
+    Default: 10.0.10.0/24
+
+  PrivateSubnetApp2Cidr:
+    Type: String
+    Default: 10.0.20.0/24
+
+  PrivateSubnetDbCidr:
+    Type: String
+    Default: 10.0.30.0/24
+
+  AZ1:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-2a
+
+  AZ2:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-2c
+
+  KeyName:
+    Type: String
+    Default: devine-key
+
+  TemplateBaseUrl:
+    Type: String
+    Description: S3 URL prefix for nested templates
+    Default: https://devine-private-bucket.s3.ap-northeast-2.amazonaws.com/cloudformation
+
+Resources:
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${TemplateBaseUrl}/network.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VpcCidr: !Ref VpcCidr
+        PublicSubnet1Cidr: !Ref PublicSubnet1Cidr
+        PublicSubnet2Cidr: !Ref PublicSubnet2Cidr
+        PrivateSubnetApp1Cidr: !Ref PrivateSubnetApp1Cidr
+        PrivateSubnetApp2Cidr: !Ref PrivateSubnetApp2Cidr
+        PrivateSubnetDbCidr: !Ref PrivateSubnetDbCidr
+        AZ1: !Ref AZ1
+        AZ2: !Ref AZ2
+
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: NetworkStack
+    Properties:
+      TemplateURL: !Sub ${TemplateBaseUrl}/security.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VpcId: !GetAtt NetworkStack.Outputs.VpcId
+
+  IAMStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${TemplateBaseUrl}/iam.yaml
+
+  ComputeStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - SecurityStack
+      - IAMStack
+    Properties:
+      TemplateURL: !Sub ${TemplateBaseUrl}/compute.yaml
+      Parameters:
+        KeyName: !Ref KeyName
+        PublicSubnet1Id: !GetAtt NetworkStack.Outputs.PublicSubnet1Id
+        PublicSubnet2Id: !GetAtt NetworkStack.Outputs.PublicSubnet2Id
+        PrivateSubnetDbId: !GetAtt NetworkStack.Outputs.PrivateSubnetDbId
+        AppSecurityGroupId: !GetAtt SecurityStack.Outputs.AppSecurityGroupId
+        DbSecurityGroupId: !GetAtt SecurityStack.Outputs.DbSecurityGroupId
+        InstanceProfileName: !GetAtt IAMStack.Outputs.InstanceProfileName
+
+  ServicesStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${TemplateBaseUrl}/services.yaml
+
+Outputs:
+  VpcId:
+    Value: !GetAtt NetworkStack.Outputs.VpcId
+  PublicSubnet1Id:
+    Value: !GetAtt NetworkStack.Outputs.PublicSubnet1Id
+  PublicSubnet2Id:
+    Value: !GetAtt NetworkStack.Outputs.PublicSubnet2Id
+  PrivateSubnetApp1Id:
+    Value: !GetAtt NetworkStack.Outputs.PrivateSubnetApp1Id
+  PrivateSubnetApp2Id:
+    Value: !GetAtt NetworkStack.Outputs.PrivateSubnetApp2Id
+  PrivateSubnetDbId:
+    Value: !GetAtt NetworkStack.Outputs.PrivateSubnetDbId
+  AppSecurityGroupId:
+    Value: !GetAtt SecurityStack.Outputs.AppSecurityGroupId
+  DbSecurityGroupId:
+    Value: !GetAtt SecurityStack.Outputs.DbSecurityGroupId
+  ProdInstanceId:
+    Value: !GetAtt ComputeStack.Outputs.ProdInstanceId
+  DevInstanceId:
+    Value: !GetAtt ComputeStack.Outputs.DevInstanceId
+  PrivateInstanceId:
+    Value: !GetAtt ComputeStack.Outputs.PrivateInstanceId
+  ProdPublicIP:
+    Value: !GetAtt ComputeStack.Outputs.ProdPublicIP
+  DevPublicIP:
+    Value: !GetAtt ComputeStack.Outputs.DevPublicIP
+  EC2DistributionDomainName:
+    Value: !GetAtt ServicesStack.Outputs.EC2DistributionDomainName
+  S3DistributionDomainName:
+    Value: !GetAtt ServicesStack.Outputs.S3DistributionDomainName
