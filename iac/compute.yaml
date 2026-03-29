@@ -19,7 +19,7 @@ Parameters:
 
 Resources:
   ProdEIP:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
@@ -28,7 +28,7 @@ Resources:
           Value: devine-prod-eip
 
   DevEIP:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
@@ -37,7 +37,7 @@ Resources:
           Value: devine-dev-eip
 
   ProdInstance:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
@@ -63,10 +63,10 @@ Resources:
         - Key: Name
           Value: devine-prod-instance
       CreditSpecification:
-        CPUCredits: unlimited
+        CPUCredits: standard
 
   DevInstance:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
@@ -92,10 +92,10 @@ Resources:
         - Key: Name
           Value: devine-dev-instance
       CreditSpecification:
-        CPUCredits: unlimited
+        CPUCredits: standard
 
   PrivateInstance:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
@@ -121,28 +121,21 @@ Resources:
         - Key: Name
           Value: devine-private-instance
       CreditSpecification:
-        CPUCredits: unlimited
+        CPUCredits: standard
 
   ProdEIPAssociation:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::EIPAssociation
     Properties:
       AllocationId: !GetAtt ProdEIP.AllocationId
       InstanceId: !Ref ProdInstance
 
   DevEIPAssociation:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::EIPAssociation
     Properties:
       AllocationId: !GetAtt DevEIP.AllocationId
       InstanceId: !Ref DevInstance
-
-  DevineKeyPair:
-    DeletionPolicy: Retain
-    Type: AWS::EC2::KeyPair
-    Properties:
-      KeyName: devine-key
-      KeyType: rsa
 
 Outputs:
   ProdInstanceId:
@@ -155,3 +148,7 @@ Outputs:
     Value: !Ref ProdEIP
   DevPublicIP:
     Value: !Ref DevEIP
+  ProdEIPPublicIp:
+    Value: !GetAtt ProdEIP.PublicIp
+  DevEIPPublicIp:
+    Value: !GetAtt DevEIP.PublicIp

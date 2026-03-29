@@ -9,7 +9,7 @@ Parameters:
 
 Resources:
   AppSecurityGroup:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: App servers - HTTP/HTTPS inbound, internal 8080
@@ -35,7 +35,7 @@ Resources:
           Value: !Sub devine-app-sg-${Environment}
 
   AppInternalIngress:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref AppSecurityGroup
@@ -46,7 +46,7 @@ Resources:
       Description: Internal app communication
 
   DbSecurityGroup:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: DB server - access only from App SG
@@ -62,6 +62,11 @@ Resources:
           ToPort: 6379
           SourceSecurityGroupId: !Ref AppSecurityGroup
           Description: Redis from App SG
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+          Description: SSH from bastion (App SG)
       Tags:
         - Key: Name
           Value: !Sub devine-db-sg-${Environment}

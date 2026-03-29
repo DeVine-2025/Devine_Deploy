@@ -1,10 +1,23 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'DeVine IAM - Role, Instance Profile, Policies, Users'
 
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+  PublicBucketName:
+    Type: String
+  PrivateBucketName:
+    Type: String
+  ConfigBucketName:
+    Type: String
+    Default: devine-config-bucket
+    Description: 설정 파일용 S3 버킷명
+
 Resources:
   # --- Managed Policies ---
   DevinePrivateBucketPolicy:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: devine-private-bucket-policy
@@ -16,11 +29,11 @@ Resources:
               - s3:GetObject
               - s3:ListBucket
             Resource:
-              - arn:aws:s3:::devine-private-bucket
-              - arn:aws:s3:::devine-private-bucket/config/*
+              - !Sub 'arn:aws:s3:::${PrivateBucketName}'
+              - !Sub 'arn:aws:s3:::${PrivateBucketName}/config/*'
 
   DevinePublicBucketPolicy:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: devine-public-bucket-policy
@@ -32,10 +45,10 @@ Resources:
               - s3:PutObject
               - s3:GetObject
               - s3:DeleteObject
-            Resource: arn:aws:s3:::devine-public-bucket/*
+            Resource: !Sub 'arn:aws:s3:::${PublicBucketName}/*'
 
   PrivateBucketPolicy:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: private-bucket-policy
@@ -44,13 +57,13 @@ Resources:
         Statement:
           - Effect: Allow
             Action: s3:GetObject
-            Resource: arn:aws:s3:::devine-config-bucket/devine-ai/.env.ai
+            Resource: !Sub arn:aws:s3:::${ConfigBucketName}/devine-ai/.env.ai
           - Effect: Allow
             Action: s3:ListBucket
-            Resource: arn:aws:s3:::devine-config-bucket
+            Resource: !Sub arn:aws:s3:::${ConfigBucketName}
 
   StorageLensViewerPolicy:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: StorageLensViewerPolicy
@@ -66,7 +79,7 @@ Resources:
 
   # --- Role & Instance Profile ---
   DevineS3Role:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::Role
     Properties:
       RoleName: devine-s3-role
@@ -87,7 +100,7 @@ Resources:
         - !Ref DevinePublicBucketPolicy
 
   DevineInstanceProfile:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
@@ -97,7 +110,7 @@ Resources:
 
   # --- Users ---
   DevineAdminUser:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::User
     Properties:
       UserName: devine-admin
@@ -107,7 +120,7 @@ Resources:
         - arn:aws:iam::aws:policy/AdministratorAccess
 
   DevineUser:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::User
     Properties:
       UserName: devine-user
@@ -134,7 +147,7 @@ Resources:
                 Resource: '*'
 
   DevineS3OnlyUser:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::User
     Properties:
       UserName: devine-s3-only
@@ -144,7 +157,7 @@ Resources:
         - !Ref DevinePublicBucketPolicy
 
   DevineFormerUser:
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::IAM::User
     Properties:
       UserName: devine-former
@@ -156,4 +169,4 @@ Outputs:
   InstanceProfileName:
     Value: !Ref DevineInstanceProfile
     Export:
-      Name: devine-prod-instance-profile
+      Name: !Sub devine-${Environment}-instance-profile
