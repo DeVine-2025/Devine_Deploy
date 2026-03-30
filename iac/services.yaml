@@ -1,0 +1,378 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DeVine Services - S3, CloudFront, Route53, CloudWatch'
+
+Parameters:
+  Environment:
+    Type: String
+  ProdEIPPublicIp:
+    Type: String
+    Description: Prod EC2 Elastic IP address
+  DevEIPPublicIp:
+    Type: String
+    Description: Dev EC2 Elastic IP address
+  PublicBucketName:
+    Type: String
+  PrivateBucketName:
+    Type: String
+
+Resources:
+  # --- S3 ---
+  PublicBucket:
+    DeletionPolicy: Delete
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref PublicBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  PrivateBucket:
+    DeletionPolicy: Delete
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref PrivateBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # --- S3 Bucket Policies ---
+  PublicBucketPolicy:
+    DeletionPolicy: Delete
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PublicBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceHTTPS
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt PublicBucket.Arn
+              - !Sub '${PublicBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyAccessExceptServerAndAdminAndCloudFront
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt PublicBucket.Arn
+              - !Sub '${PublicBucket.Arn}/*'
+            Condition:
+              StringNotLike:
+                aws:PrincipalArn:
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/my-app-s3-server-role'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/devine-s3-role'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-admin'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-user'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-s3-only'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/cloudfront.amazonaws.com/AWSServiceRoleForCloudFrontLogger'
+              ArnNotLike:
+                aws:SourceArn:
+                  - !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${S3Distribution}'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-s3-only'
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${PublicBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${S3Distribution}'
+
+  PrivateBucketPolicy:
+    DeletionPolicy: Delete
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PrivateBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceHTTPS
+            Effect: Deny
+            Principal: '*'
+            Action: s3:GetObject
+            Resource:
+              - !GetAtt PrivateBucket.Arn
+              - !Sub '${PrivateBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyAccessExceptServerAndAdmin
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt PrivateBucket.Arn
+              - !Sub '${PrivateBucket.Arn}/*'
+            Condition:
+              StringNotLike:
+                aws:PrincipalArn:
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/my-app-s3-server-role'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/devine-s3-role'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-admin'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-user'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+
+  # --- CloudFront OAC ---
+  CloudFrontOACForS3:
+    DeletionPolicy: Delete
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub 'oac-${PublicBucketName}'
+        SigningBehavior: always
+        SigningProtocol: sigv4
+        OriginAccessControlOriginType: s3
+
+  # --- CloudFront Distributions ---
+  EC2Distribution:
+    DeletionPolicy: Delete
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        PriceClass: PriceClass_200
+        Origins:
+          - Id: devine-prod-origin
+            DomainName: !Join
+              - ''
+              - - 'ec2-'
+                - !Select [0, !Split ['.', !Ref ProdEIPPublicIp]]
+                - '-'
+                - !Select [1, !Split ['.', !Ref ProdEIPPublicIp]]
+                - '-'
+                - !Select [2, !Split ['.', !Ref ProdEIPPublicIp]]
+                - '-'
+                - !Select [3, !Split ['.', !Ref ProdEIPPublicIp]]
+                - '.ap-northeast-2.compute.amazonaws.com'
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            ConnectionTimeout: 10
+            ConnectionAttempts: 3
+        DefaultCacheBehavior:
+          TargetOriginId: devine-prod-origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 83da9c7e-98b4-4e11-a168-04f0df8e2c65      # CachingDisabled
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3  # AllViewer
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: none
+
+  S3Distribution:
+    DeletionPolicy: Delete
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        PriceClass: PriceClass_200
+        Origins:
+          - Id: devine-public-bucket-origin
+            DomainName: !GetAtt PublicBucket.RegionalDomainName
+            OriginAccessControlId: !Ref CloudFrontOACForS3
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            ConnectionTimeout: 10
+            ConnectionAttempts: 3
+        DefaultCacheBehavior:
+          TargetOriginId: devine-public-bucket-origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6        # CachingOptimized
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: none
+
+  # --- Route 53 ---
+  HostedZone:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: devine.kr.
+
+  # Apex - Vercel
+  ApexRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: devine.kr.
+      Type: A
+      TTL: 300
+      ResourceRecords:
+        - 216.198.79.1
+
+  # www - Vercel
+  WwwRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: www.devine.kr.
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - f1fdbc919cea6d62.vercel-dns-017.com
+
+  # qa - Vercel
+  QaRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: qa.devine.kr.
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - f1fdbc919cea6d62.vercel-dns-017.com.
+
+  # api - Prod EC2 EIP
+  ApiRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: api.devine.kr.
+      Type: A
+      TTL: 300
+      ResourceRecords:
+        - !Ref ProdEIPPublicIp
+
+  # dev - Dev EC2 EIP
+  DevRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: dev.devine.kr.
+      Type: A
+      TTL: 60
+      ResourceRecords:
+        - !Ref DevEIPPublicIp
+
+  # Clerk - 인증 서비스
+  AccountsRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: accounts.devine.kr.
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - accounts.clerk.services
+
+  ClerkRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: clerk.devine.kr.
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - frontend-api.clerk.services
+
+  ClkMailRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: clkmail.devine.kr.
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - mail.cj530ub2rj45.clerk.services
+
+  ClkDkim1Record:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: clk._domainkey.devine.kr.
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - dkim1.cj530ub2rj45.clerk.services
+
+  ClkDkim2Record:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: clk2._domainkey.devine.kr.
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - dkim2.cj530ub2rj45.clerk.services
+
+  # Google Site Verification
+  GoogleSiteVerificationRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: '\100.devine.kr.'
+      Type: TXT
+      TTL: 300
+      ResourceRecords:
+        - '"google-site-verification=4ujgptFTEbAAGIUeltaCI0CFissiwb2U1-Au0LDx-ss"'
+
+  # ACM 인증서 검증 - 새 계정 배포 시 새 인증서 발급 후 값 교체 필요
+  AcmValidationRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: _668e812203bcc69c8d6bd41e0a8601be.devine.kr.
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - _871c7b584aa487626d613a1244db8b7c.jkddzztszm.acm-validations.aws.
+
+  # --- CloudWatch ---
+  ProdLogGroup:
+    DeletionPolicy: Delete
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: devine-prod
+      LogGroupClass: STANDARD
+      RetentionInDays: 14
+
+Outputs:
+  EC2DistributionDomainName:
+    Value: !GetAtt EC2Distribution.DomainName
+  S3DistributionDomainName:
+    Value: !GetAtt S3Distribution.DomainName
+  HostedZoneId:
+    Value: !Ref HostedZone

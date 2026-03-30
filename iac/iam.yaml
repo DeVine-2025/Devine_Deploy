@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DeVine IAM - Role, Instance Profile, Policies, Users'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+  PublicBucketName:
+    Type: String
+  PrivateBucketName:
+    Type: String
+  ConfigBucketName:
+    Type: String
+    Default: devine-config-bucket
+    Description: 설정 파일용 S3 버킷명
+
+Resources:
+  # --- Managed Policies ---
+  DevinePrivateBucketPolicy:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: devine-private-bucket-policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:ListBucket
+            Resource:
+              - !Sub 'arn:aws:s3:::${PrivateBucketName}'
+              - !Sub 'arn:aws:s3:::${PrivateBucketName}/config/*'
+
+  DevinePublicBucketPolicy:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: devine-public-bucket-policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Resource: !Sub 'arn:aws:s3:::${PublicBucketName}/*'
+
+  PrivateBucketPolicy:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: private-bucket-policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub arn:aws:s3:::${ConfigBucketName}/devine-ai/.env.ai
+          - Effect: Allow
+            Action: s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${ConfigBucketName}
+
+  StorageLensViewerPolicy:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: StorageLensViewerPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListStorageLensConfigurations
+              - s3:GetStorageLensConfiguration
+              - s3:GetStorageLensDashboard
+            Resource: '*'
+
+  # --- Role & Instance Profile ---
+  DevineS3Role:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: devine-s3-role
+      Description: Allows EC2 instances to call AWS services on your behalf.
+      Path: /
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Ref DevinePrivateBucketPolicy
+        - !Ref DevinePublicBucketPolicy
+
+  DevineInstanceProfile:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      InstanceProfileName: devine-s3-role
+      Roles:
+        - !Ref DevineS3Role
+
+  # --- Users ---
+  DevineAdminUser:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::User
+    Properties:
+      UserName: devine-admin
+      Path: /
+      ManagedPolicyArns:
+        - !Ref StorageLensViewerPolicy
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+  DevineUser:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::User
+    Properties:
+      UserName: devine-user
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonRoute53FullAccess
+        - !Ref PrivateBucketPolicy
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudFrontFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
+      Policies:
+        - PolicyName: SSMSessionAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:StartSession
+                  - ssm:TerminateSession
+                  - ssm:ResumeSession
+                  - ssm:DescribeSessions
+                  - ssm:GetConnectionStatus
+                Resource: '*'
+
+  DevineS3OnlyUser:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::User
+    Properties:
+      UserName: devine-s3-only
+      Path: /
+      ManagedPolicyArns:
+        - !Ref DevinePrivateBucketPolicy
+        - !Ref DevinePublicBucketPolicy
+
+  DevineFormerUser:
+    DeletionPolicy: Delete
+    Type: AWS::IAM::User
+    Properties:
+      UserName: devine-former
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
+
+Outputs:
+  InstanceProfileName:
+    Value: !Ref DevineInstanceProfile
+    Export:
+      Name: !Sub devine-${Environment}-instance-profile

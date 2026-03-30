@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DeVine Network - VPC, Subnets, IGW, Route Tables'
+
+Parameters:
+  Environment:
+    Type: String
+  VpcCidr:
+    Type: String
+  PublicSubnet1Cidr:
+    Type: String
+  PublicSubnet2Cidr:
+    Type: String
+  PrivateSubnetApp1Cidr:
+    Type: String
+  PrivateSubnetApp2Cidr:
+    Type: String
+  PrivateSubnetDbCidr:
+    Type: String
+  PrivateSubnetDb2Cidr:
+    Type: String
+  AZ1:
+    Type: AWS::EC2::AvailabilityZone::Name
+  AZ2:
+    Type: AWS::EC2::AvailabilityZone::Name
+
+Resources:
+  VPC:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub devine-vpc-${Environment}
+
+  InternetGateway:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub devine-igw-${Environment}
+
+  IGWAttachment:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # --- Subnets ---
+  PublicSubnet1:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet1Cidr
+      AvailabilityZone: !Ref AZ1
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub devine-public-a-${Environment}
+
+  PublicSubnet2:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2Cidr
+      AvailabilityZone: !Ref AZ2
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub devine-public-c-${Environment}
+
+  PrivateSubnetApp1:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetApp1Cidr
+      AvailabilityZone: !Ref AZ1
+      Tags:
+        - Key: Name
+          Value: !Sub devine-private-app-a-${Environment}
+
+  PrivateSubnetApp2:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetApp2Cidr
+      AvailabilityZone: !Ref AZ2
+      Tags:
+        - Key: Name
+          Value: !Sub devine-private-app-c-${Environment}
+
+  PrivateSubnetDb:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetDbCidr
+      AvailabilityZone: !Ref AZ1
+      Tags:
+        - Key: Name
+          Value: !Sub devine-private-db-a-${Environment}
+
+  PrivateSubnetDb2:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetDb2Cidr
+      AvailabilityZone: !Ref AZ2
+      Tags:
+        - Key: Name
+          Value: !Sub devine-private-db-c-${Environment}
+
+  # --- Route Tables - Public ---
+  PublicRouteTable:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub devine-public-rt-${Environment}
+
+  PublicRoute:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RTAssoc:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RTAssoc:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # --- Route Tables - Private ---
+  PrivateRouteTable:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub devine-private-rt-${Environment}
+
+  PrivateSubnetApp1RTAssoc:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetApp1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetApp2RTAssoc:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetApp2
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetDbRTAssoc:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetDb
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetDb2RTAssoc:
+    DeletionPolicy: Delete
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetDb2
+      RouteTableId: !Ref PrivateRouteTable
+
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub devine-${Environment}-vpc-id
+  VpcCidr:
+    Value: !Ref VpcCidr
+    Export:
+      Name: !Sub devine-${Environment}-vpc-cidr
+  PublicSubnet1Id:
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub devine-${Environment}-public-subnet-a
+  PublicSubnet2Id:
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub devine-${Environment}-public-subnet-c
+  PrivateSubnetApp1Id:
+    Value: !Ref PrivateSubnetApp1
+    Export:
+      Name: !Sub devine-${Environment}-private-app-subnet-a
+  PrivateSubnetApp2Id:
+    Value: !Ref PrivateSubnetApp2
+    Export:
+      Name: !Sub devine-${Environment}-private-app-subnet-c
+  PrivateSubnetDbId:
+    Value: !Ref PrivateSubnetDb
+    Export:
+      Name: !Sub devine-${Environment}-private-db-subnet
+  PrivateSubnetDb2Id:
+    Value: !Ref PrivateSubnetDb2
+    Export:
+      Name: !Sub devine-${Environment}-private-db-subnet-c
