@@ -15,8 +15,6 @@ services:
         condition: service_healthy
       realtime:
         condition: service_healthy
-      ai:
-        condition: service_healthy
     networks:
       - devine-network
 
