@@ -10,22 +10,29 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d  # Nginx 설정 파일
       - ./nginx/ssl:/etc/nginx/ssl        # SSL 인증서 파일
       - ./nginx/log:/var/log/nginx        # 로그 파일
+    depends_on:
+      api:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
     networks:
       - devine-network
 
-  backend:
-    image: ${DOCKER_USERNAME}/devine-backend:${DOCKER_IMAGE_TAG:-latest}
-    container_name: devine-backend
+  api:
+    image: ${DOCKER_USERNAME}/devine-api:${DOCKER_IMAGE_TAG:-latest}
+    container_name: devine-api
     restart: unless-stopped
     expose:
-      - "${SPRING_PORT}"
+      - "${API_PORT}"
     env_file:
       - .env
     environment:
       - TZ=Asia/Seoul
       - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:${SPRING_PORT}/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:${API_PORT}/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -33,7 +40,29 @@ services:
     networks:
       - devine-network
     volumes:
-      - ./logs/backend:/app/logs
+      - ./logs/api:/app/logs
+
+  realtime:
+    image: ${DOCKER_USERNAME}/devine-realtime:${DOCKER_IMAGE_TAG:-latest}
+    container_name: devine-realtime
+    restart: unless-stopped
+    expose:
+      - "${REALTIME_PORT}"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:${REALTIME_PORT}/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    networks:
+      - devine-network
+    volumes:
+      - ./logs/realtime:/app/logs
 
   ai:
     image: ${DOCKER_USERNAME}/devine-ai:${DOCKER_IMAGE_TAG:-latest}
