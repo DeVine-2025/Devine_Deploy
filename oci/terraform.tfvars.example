@@ -1,0 +1,20 @@
+# OCI Provider 인증 (https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm)
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaXXXXXX"
+user_ocid        = "ocid1.user.oc1..aaaaaaaaXXXXXX"
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "ap-chuncheon-1"
+
+# Compartment (root tenancy OCID와 동일하거나 하위 compartment)
+compartment_ocid = "ocid1.compartment.oc1..aaaaaaaaXXXXXX"
+
+# SSH 공개 키
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAXXXX"
+
+# 인스턴스 스펙 (Always Free 제약: 1 OCPU / 1GB만 생성 가능)
+arm_instance_ocpus     = 1
+arm_instance_memory_gb = 1
+boot_volume_size_gb    = 50
+
+# SSH 접속 허용 CIDR (팀 공유 시 0.0.0.0/0, 제한 시 IP 지정)
+ssh_allow_cidrs = ["0.0.0.0/0"]

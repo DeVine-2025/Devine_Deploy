@@ -8,6 +8,7 @@
 
 # 로그 파일
 *.log
+log
 
 # 백업 파일
 *.backup
@@ -23,3 +24,10 @@ Thumbs.db
 
 # 인증서
 ssl
+
+# Terraform
+oci/.terraform/
+oci/.terraform.lock.hcl
+oci/terraform.tfstate
+oci/terraform.tfstate.backup
+oci/terraform.tfvars
