@@ -6,10 +6,14 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - API_PORT=${API_PORT}
+      - REALTIME_PORT=${REALTIME_PORT}
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d  # Nginx 설정 파일
-      - ./nginx/ssl:/etc/nginx/ssl        # SSL 인증서 파일
-      - ./nginx/log:/var/log/nginx        # 로그 파일
+      - ./nginx/conf.d:/etc/nginx/conf.d        # Nginx 설정 파일
+      - ./nginx/templates:/etc/nginx/templates  # envsubst 템플릿
+      - ./nginx/ssl:/etc/nginx/ssl              # SSL 인증서 파일
+      - ./nginx/log:/var/log/nginx              # 로그 파일
     depends_on:
       api:
         condition: service_healthy
