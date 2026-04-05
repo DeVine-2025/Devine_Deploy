@@ -1,0 +1,12 @@
+# Backend & AI upstream definitions
+upstream api {
+    server api:${API_PORT};
+}
+
+upstream realtime {
+    server realtime:${REALTIME_PORT};
+}
+
+# upstream ai {
+#     server devine-ai:${FAST_PORT};
+# }
