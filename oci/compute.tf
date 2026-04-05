@@ -67,9 +67,9 @@ resource "oci_core_instance" "db" {
   }
 
   create_vnic_details {
-    subnet_id        = oci_core_subnet.private.id
+    subnet_id        = oci_core_subnet.public.id
     display_name     = "devine-dev-db-vnic"
-    assign_public_ip = false
+    assign_public_ip = true # SSH 관리용, DB 포트는 NSG에서 svc IP로 제한
     nsg_ids          = [oci_core_network_security_group.db.id]
   }
 

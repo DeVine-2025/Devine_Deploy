@@ -62,11 +62,6 @@ variable "public_subnet_cidr" {
   default     = "10.1.1.0/24"
 }
 
-variable "private_subnet_cidr" {
-  description = "Private Subnet CIDR (DB)"
-  type        = string
-  default     = "10.1.2.0/24"
-}
 
 variable "ssh_allow_cidrs" {
   description = "SSH 접속 허용 CIDR 목록"

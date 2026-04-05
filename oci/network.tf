@@ -96,23 +96,25 @@ resource "oci_core_security_list" "db" {
   vcn_id         = oci_core_vcn.main.id
   display_name   = "devine-dev-db-sl"
 
-  # Egress: VCN 내부만 허용 (인터넷 불필요)
   egress_security_rules {
     protocol    = "all"
-    destination = var.vcn_cidr
+    destination = "0.0.0.0/0"
   }
 
-  # SSH - Public Subnet에서만 (Jump Host 패턴)
-  ingress_security_rules {
-    protocol = "6"
-    source   = var.public_subnet_cidr
-    tcp_options {
-      min = 22
-      max = 22
+  # SSH (관리용)
+  dynamic "ingress_security_rules" {
+    for_each = var.ssh_allow_cidrs
+    content {
+      protocol = "6"
+      source   = ingress_security_rules.value
+      tcp_options {
+        min = 22
+        max = 22
+      }
     }
   }
 
-  # PostgreSQL - Public Subnet에서만
+  # PostgreSQL - 같은 Subnet 내에서만 (NSG에서 svc IP로 추가 제한)
   ingress_security_rules {
     protocol = "6"
     source   = var.public_subnet_cidr
@@ -122,7 +124,7 @@ resource "oci_core_security_list" "db" {
     }
   }
 
-  # Valkey(Redis) - Public Subnet에서만
+  # Valkey(Redis) - 같은 Subnet 내에서만 (NSG에서 svc IP로 추가 제한)
   ingress_security_rules {
     protocol = "6"
     source   = var.public_subnet_cidr
@@ -156,27 +158,5 @@ resource "oci_core_subnet" "public" {
   security_list_ids = [oci_core_security_list.svc.id]
 }
 
-# ──────────────────────────────────────
-# Route Table - Private (인터넷 경로 없음)
-# ──────────────────────────────────────
-resource "oci_core_route_table" "private" {
-  compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.main.id
-  display_name   = "devine-dev-private-rt"
-  # 라우트 룰 없음 → VCN 내부 통신만 가능
-}
 
-# ──────────────────────────────────────
-# Subnet - Private (DB)
-# ──────────────────────────────────────
-resource "oci_core_subnet" "private" {
-  compartment_id             = var.compartment_ocid
-  vcn_id                     = oci_core_vcn.main.id
-  cidr_block                 = var.private_subnet_cidr
-  display_name               = "devine-dev-private-subnet"
-  dns_label                  = "prv"
-  route_table_id             = oci_core_route_table.private.id
-  security_list_ids          = [oci_core_security_list.db.id]
-  prohibit_public_ip_on_vnic = true
-}
 
