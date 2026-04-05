@@ -18,6 +18,12 @@ output "ssh_db" {
   value       = "ssh -J ubuntu@${oci_core_instance.svc.public_ip} ubuntu@${oci_core_instance.db.private_ip}"
 }
 
+output "developer_console_password" {
+  description = "개발자 계정 초기 비밀번호 (첫 로그인 시 변경 필요)"
+  value       = oci_identity_ui_password.developer.password
+  sensitive   = true
+}
+
 output "lb_public_ip" {
   description = "Load Balancer Public IP"
   value       = oci_load_balancer_load_balancer.main.ip_address_details[0].ip_address
