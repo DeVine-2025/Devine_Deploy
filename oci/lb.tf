@@ -106,5 +106,6 @@ resource "oci_load_balancer_listener" "https" {
   ssl_configuration {
     certificate_name        = oci_load_balancer_certificate.main.certificate_name
     verify_peer_certificate = false
+    verify_depth            = 1
   }
 }

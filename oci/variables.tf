@@ -41,18 +41,6 @@ variable "ssh_public_key" {
   type        = string
 }
 
-variable "arm_instance_ocpus" {
-  description = "ARM A1 인스턴스당 OCPU 수"
-  type        = number
-  default     = 1
-}
-
-variable "arm_instance_memory_gb" {
-  description = "ARM A1 인스턴스당 메모리(GB)"
-  type        = number
-  default     = 1
-}
-
 variable "boot_volume_size_gb" {
   description = "부트 볼륨 크기(GB)"
   type        = number
@@ -72,6 +60,12 @@ variable "public_subnet_cidr" {
   description = "Public Subnet CIDR"
   type        = string
   default     = "10.1.1.0/24"
+}
+
+variable "private_subnet_cidr" {
+  description = "Private Subnet CIDR (DB)"
+  type        = string
+  default     = "10.1.2.0/24"
 }
 
 variable "ssh_allow_cidrs" {

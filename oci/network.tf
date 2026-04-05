@@ -89,32 +89,30 @@ resource "oci_core_security_list" "svc" {
 }
 
 # ──────────────────────────────────────
-# Security List - DB용
+# Security List - DB용 (Private Subnet)
 # ──────────────────────────────────────
 resource "oci_core_security_list" "db" {
   compartment_id = var.compartment_ocid
   vcn_id         = oci_core_vcn.main.id
   display_name   = "devine-dev-db-sl"
 
+  # Egress: VCN 내부만 허용 (인터넷 불필요)
   egress_security_rules {
     protocol    = "all"
-    destination = "0.0.0.0/0"
+    destination = var.vcn_cidr
   }
 
-  # SSH (관리용)
-  dynamic "ingress_security_rules" {
-    for_each = var.ssh_allow_cidrs
-    content {
-      protocol = "6"
-      source   = ingress_security_rules.value
-      tcp_options {
-        min = 22
-        max = 22
-      }
+  # SSH - Public Subnet에서만 (Jump Host 패턴)
+  ingress_security_rules {
+    protocol = "6"
+    source   = var.public_subnet_cidr
+    tcp_options {
+      min = 22
+      max = 22
     }
   }
 
-  # PostgreSQL - VCN 내부에서만
+  # PostgreSQL - Public Subnet에서만
   ingress_security_rules {
     protocol = "6"
     source   = var.public_subnet_cidr
@@ -124,7 +122,7 @@ resource "oci_core_security_list" "db" {
     }
   }
 
-  # Valkey(Redis) - VCN 내부에서만
+  # Valkey(Redis) - Public Subnet에서만
   ingress_security_rules {
     protocol = "6"
     source   = var.public_subnet_cidr
@@ -146,7 +144,7 @@ resource "oci_core_security_list" "db" {
 }
 
 # ──────────────────────────────────────
-# Subnet (Public - NAT Gateway 프리티어 미지원)
+# Subnet - Public (svc, LB)
 # ──────────────────────────────────────
 resource "oci_core_subnet" "public" {
   compartment_id    = var.compartment_ocid
@@ -158,44 +156,27 @@ resource "oci_core_subnet" "public" {
   security_list_ids = [oci_core_security_list.svc.id]
 }
 
-# DB 인스턴스도 동일 Subnet에 배치하되 별도 NSG로 포트 제한
-# (프리티어에서는 NAT Gateway 없으므로 Private Subnet 사용 불가)
-
 # ──────────────────────────────────────
-# Security List - LB 헬스체크 허용 (svc Security List에 추가)
+# Route Table - Private (인터넷 경로 없음)
 # ──────────────────────────────────────
-resource "oci_core_network_security_group" "lb" {
+resource "oci_core_route_table" "private" {
   compartment_id = var.compartment_ocid
   vcn_id         = oci_core_vcn.main.id
-  display_name   = "devine-dev-lb-nsg"
+  display_name   = "devine-dev-private-rt"
+  # 라우트 룰 없음 → VCN 내부 통신만 가능
 }
 
-resource "oci_core_network_security_group_security_rule" "lb_health_http" {
-  network_security_group_id = oci_core_network_security_group.lb.id
-  direction                 = "INGRESS"
-  protocol                  = "6"
-  source                    = "0.0.0.0/0"
-  source_type               = "CIDR_BLOCK"
-
-  tcp_options {
-    destination_port_range {
-      min = 80
-      max = 80
-    }
-  }
+# ──────────────────────────────────────
+# Subnet - Private (DB)
+# ──────────────────────────────────────
+resource "oci_core_subnet" "private" {
+  compartment_id             = var.compartment_ocid
+  vcn_id                     = oci_core_vcn.main.id
+  cidr_block                 = var.private_subnet_cidr
+  display_name               = "devine-dev-private-subnet"
+  dns_label                  = "prv"
+  route_table_id             = oci_core_route_table.private.id
+  security_list_ids          = [oci_core_security_list.db.id]
+  prohibit_public_ip_on_vnic = true
 }
 
-resource "oci_core_network_security_group_security_rule" "lb_health_https" {
-  network_security_group_id = oci_core_network_security_group.lb.id
-  direction                 = "INGRESS"
-  protocol                  = "6"
-  source                    = "0.0.0.0/0"
-  source_type               = "CIDR_BLOCK"
-
-  tcp_options {
-    destination_port_range {
-      min = 443
-      max = 443
-    }
-  }
-}

@@ -1,7 +1,7 @@
 # ──────────────────────────────────────
-# Ubuntu 22.04 aarch64 이미지 조회
+# Ubuntu 22.04 x86 이미지 조회 (VM.Standard.E2.1.Micro)
 # ──────────────────────────────────────
-data "oci_core_images" "ubuntu_arm" {
+data "oci_core_images" "ubuntu_x86" {
   compartment_id           = var.compartment_ocid
   operating_system         = "Canonical Ubuntu"
   operating_system_version = "22.04"
@@ -28,7 +28,7 @@ resource "oci_core_instance" "svc" {
 
   source_details {
     source_type             = "image"
-    source_id               = data.oci_core_images.ubuntu_arm.images[0].id
+    source_id               = data.oci_core_images.ubuntu_x86.images[0].id
     boot_volume_size_in_gbs = var.boot_volume_size_gb
   }
 
@@ -62,14 +62,14 @@ resource "oci_core_instance" "db" {
 
   source_details {
     source_type             = "image"
-    source_id               = data.oci_core_images.ubuntu_arm.images[0].id
+    source_id               = data.oci_core_images.ubuntu_x86.images[0].id
     boot_volume_size_in_gbs = var.boot_volume_size_gb
   }
 
   create_vnic_details {
-    subnet_id        = oci_core_subnet.public.id
+    subnet_id        = oci_core_subnet.private.id
     display_name     = "devine-dev-db-vnic"
-    assign_public_ip = true # SSH 관리용, DB 포트는 Security List에서 차단
+    assign_public_ip = false
     nsg_ids          = [oci_core_network_security_group.db.id]
   }
 
