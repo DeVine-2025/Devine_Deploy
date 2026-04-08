@@ -1,8 +1,8 @@
-  #!/bin/bash
+#!/bin/bash
 set -euo pipefail
 
 # ──────────────────────────────────────
-# DeVine Dev - 서비스 인스턴스 초기화 (ARM64)
+# DeVine Dev - 서비스 인스턴스 초기화 (x86 / E2.1.Micro)
 # Nginx + API + Realtime + AI
 # ──────────────────────────────────────
 

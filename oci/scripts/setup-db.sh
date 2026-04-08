@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ──────────────────────────────────────
-# DeVine Dev - DB 인스턴스 초기화 (ARM64)
+# DeVine Dev - DB 인스턴스 초기화 (x86 / E2.1.Micro)
 # PostgreSQL (pgvector) + Valkey
 # ──────────────────────────────────────
 

@@ -89,63 +89,6 @@ resource "oci_core_security_list" "svc" {
 }
 
 # ──────────────────────────────────────
-# Security List - DB용 (Private Subnet)
-# ──────────────────────────────────────
-resource "oci_core_security_list" "db" {
-  compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.main.id
-  display_name   = "devine-dev-db-sl"
-
-  egress_security_rules {
-    protocol    = "all"
-    destination = "0.0.0.0/0"
-  }
-
-  # SSH (관리용)
-  dynamic "ingress_security_rules" {
-    for_each = var.ssh_allow_cidrs
-    content {
-      protocol = "6"
-      source   = ingress_security_rules.value
-      tcp_options {
-        min = 22
-        max = 22
-      }
-    }
-  }
-
-  # PostgreSQL - 같은 Subnet 내에서만 (NSG에서 svc IP로 추가 제한)
-  ingress_security_rules {
-    protocol = "6"
-    source   = var.public_subnet_cidr
-    tcp_options {
-      min = 5432
-      max = 5432
-    }
-  }
-
-  # Valkey(Redis) - 같은 Subnet 내에서만 (NSG에서 svc IP로 추가 제한)
-  ingress_security_rules {
-    protocol = "6"
-    source   = var.public_subnet_cidr
-    tcp_options {
-      min = 6379
-      max = 6379
-    }
-  }
-
-  # ICMP
-  ingress_security_rules {
-    protocol = "1"
-    source   = var.vcn_cidr
-    icmp_options {
-      type = 3
-      code = 4
-    }
-  }
-}
-
-# ──────────────────────────────────────
 # Subnet - Public (svc, LB)
 # ──────────────────────────────────────
 resource "oci_core_subnet" "public" {
