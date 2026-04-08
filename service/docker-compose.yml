@@ -32,7 +32,7 @@ services:
       - .env
     environment:
       - TZ=Asia/Seoul
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+      - "JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseContainerSupport -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/logs/heapdump.hprof"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:${API_PORT}/actuator/health"]
       interval: 30s
@@ -54,7 +54,7 @@ services:
       - .env
     environment:
       - TZ=Asia/Seoul
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+      - "JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseContainerSupport -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/logs/heapdump.hprof"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:${REALTIME_PORT}/actuator/health"]
       interval: 30s
