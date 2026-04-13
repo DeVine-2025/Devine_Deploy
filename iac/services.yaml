@@ -7,9 +7,6 @@ Parameters:
   ProdEIPPublicIp:
     Type: String
     Description: Prod EC2 Elastic IP address
-  DevEIPPublicIp:
-    Type: String
-    Description: Dev EC2 Elastic IP address
   PublicBucketName:
     Type: String
   PrivateBucketName:
@@ -267,18 +264,6 @@ Resources:
       TTL: 300
       ResourceRecords:
         - !Ref ProdEIPPublicIp
-
-  # dev - Dev EC2 EIP
-  DevRecord:
-    DeletionPolicy: Delete
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: dev.devine.kr.
-      Type: A
-      TTL: 60
-      ResourceRecords:
-        - !Ref DevEIPPublicIp
 
   # Clerk - 인증 서비스
   AccountsRecord:

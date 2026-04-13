@@ -27,15 +27,6 @@ Resources:
         - Key: Name
           Value: devine-prod-eip
 
-  DevEIP:
-    DeletionPolicy: Delete
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-      Tags:
-        - Key: Name
-          Value: devine-dev-eip
-
   ProdInstance:
     DeletionPolicy: Delete
     Type: AWS::EC2::Instance
@@ -62,35 +53,6 @@ Resources:
       Tags:
         - Key: Name
           Value: devine-prod-instance
-      CreditSpecification:
-        CPUCredits: standard
-
-  DevInstance:
-    DeletionPolicy: Delete
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: t3.micro
-      ImageId: ami-0f183df761b41084a
-      KeyName: !Ref KeyName
-      SubnetId: !Ref PublicSubnet2Id
-      SecurityGroupIds:
-        - !Ref AppSecurityGroupId
-      IamInstanceProfile: !Ref InstanceProfileName
-      EbsOptimized: true
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeType: gp3
-            VolumeSize: 30
-            Iops: 3000
-            DeleteOnTermination: true
-      MetadataOptions:
-        HttpTokens: required
-        HttpPutResponseHopLimit: 2
-        HttpEndpoint: enabled
-      Tags:
-        - Key: Name
-          Value: devine-dev-instance
       CreditSpecification:
         CPUCredits: standard
 
@@ -130,25 +92,12 @@ Resources:
       AllocationId: !GetAtt ProdEIP.AllocationId
       InstanceId: !Ref ProdInstance
 
-  DevEIPAssociation:
-    DeletionPolicy: Delete
-    Type: AWS::EC2::EIPAssociation
-    Properties:
-      AllocationId: !GetAtt DevEIP.AllocationId
-      InstanceId: !Ref DevInstance
-
 Outputs:
   ProdInstanceId:
     Value: !Ref ProdInstance
-  DevInstanceId:
-    Value: !Ref DevInstance
   PrivateInstanceId:
     Value: !Ref PrivateInstance
   ProdPublicIP:
     Value: !Ref ProdEIP
-  DevPublicIP:
-    Value: !Ref DevEIP
   ProdEIPPublicIp:
     Value: !GetAtt ProdEIP.PublicIp
-  DevEIPPublicIp:
-    Value: !GetAtt DevEIP.PublicIp

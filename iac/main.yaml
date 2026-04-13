@@ -128,7 +128,6 @@ Resources:
       Parameters:
         Environment: !Ref Environment
         ProdEIPPublicIp: !GetAtt ComputeStack.Outputs.ProdEIPPublicIp
-        DevEIPPublicIp: !GetAtt ComputeStack.Outputs.DevEIPPublicIp
         PublicBucketName: !Ref PublicBucketName
         PrivateBucketName: !Ref PrivateBucketName
 
@@ -153,14 +152,10 @@ Outputs:
     Value: !GetAtt SecurityStack.Outputs.DbSecurityGroupId
   ProdInstanceId:
     Value: !GetAtt ComputeStack.Outputs.ProdInstanceId
-  DevInstanceId:
-    Value: !GetAtt ComputeStack.Outputs.DevInstanceId
   PrivateInstanceId:
     Value: !GetAtt ComputeStack.Outputs.PrivateInstanceId
   ProdPublicIP:
     Value: !GetAtt ComputeStack.Outputs.ProdPublicIP
-  DevPublicIP:
-    Value: !GetAtt ComputeStack.Outputs.DevPublicIP
   EC2DistributionDomainName:
     Value: !GetAtt ServicesStack.Outputs.EC2DistributionDomainName
   S3DistributionDomainName:
