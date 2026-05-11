@@ -49,6 +49,10 @@ resource "oci_core_instance" "svc" {
     "env"     = "dev"
     "role"    = "service"
   }
+
+  lifecycle {
+    ignore_changes = [metadata, source_details, defined_tags, fault_domain]
+  }
 }
 
 # ──────────────────────────────────────
@@ -82,6 +86,10 @@ resource "oci_core_instance" "db" {
     "project" = "devine"
     "env"     = "dev"
     "role"    = "database"
+  }
+
+  lifecycle {
+    ignore_changes = [metadata, source_details, defined_tags, fault_domain]
   }
 }
 
