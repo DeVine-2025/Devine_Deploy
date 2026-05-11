@@ -72,7 +72,7 @@ Resources:
         - DeviceName: /dev/sda1
           Ebs:
             VolumeType: gp3
-            VolumeSize: 8
+            VolumeSize: 20
             Iops: 3000
             DeleteOnTermination: true
       MetadataOptions:
