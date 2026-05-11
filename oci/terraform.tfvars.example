@@ -20,3 +20,6 @@ ssh_allow_cidrs = ["0.0.0.0/0"]
 # SSL 인증서 경로 (Let's Encrypt)
 ssl_certificate_path = "/path/to/fullchain.pem"
 ssl_private_key_path = "/path/to/privkey.pem"
+
+# 개발자 공용 계정 이메일
+developer_email = "your-email@example.com"

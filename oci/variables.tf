@@ -81,3 +81,11 @@ variable "ssl_private_key_path" {
   description = "Let's Encrypt privkey.pem 경로"
   type        = string
 }
+
+# ──────────────────────────────────────
+# IAM
+# ──────────────────────────────────────
+variable "developer_email" {
+  description = "개발자 공용 계정 이메일"
+  type        = string
+}
