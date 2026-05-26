@@ -51,12 +51,12 @@ Parameters:
 
   PublicBucketName:
     Type: String
-    Default: devine-public-bucket
+    Default: public-devine-bucket
     Description: S3 퍼블릭 버킷명 (전역 유일 - 계정마다 다르게 설정)
 
   PrivateBucketName:
     Type: String
-    Default: devine-private-bucket
+    Default: private-devine-bucket
     Description: S3 프라이빗 버킷명 (전역 유일 - 계정마다 다르게 설정)
 
   TemplateBaseUrl:
@@ -65,7 +65,7 @@ Parameters:
       Nested Stack 템플릿이 업로드된 S3 URL 프리픽스.
       배포 전 해당 버킷에 템플릿을 먼저 업로드해야 합니다.
       예: https://{PrivateBucketName}.s3.ap-northeast-2.amazonaws.com/cloudformation
-    Default: https://devine-private-bucket.s3.ap-northeast-2.amazonaws.com/cloudformation
+    Default: https://private-devine-bucket.s3.ap-northeast-2.amazonaws.com/cloudformation
 
 Resources:
   NetworkStack:
