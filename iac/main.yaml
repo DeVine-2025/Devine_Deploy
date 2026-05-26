@@ -118,6 +118,7 @@ Resources:
         AppSecurityGroupId: !GetAtt SecurityStack.Outputs.AppSecurityGroupId
         DbSecurityGroupId: !GetAtt SecurityStack.Outputs.DbSecurityGroupId
         InstanceProfileName: !GetAtt IAMStack.Outputs.InstanceProfileName
+        PrivateBucketName: !Ref PrivateBucketName
 
   ServicesStack:
     Type: AWS::CloudFormation::Stack
