@@ -9,10 +9,6 @@ Parameters:
     Type: String
   PrivateBucketName:
     Type: String
-  ConfigBucketName:
-    Type: String
-    Default: devine-config-bucket
-    Description: 설정 파일용 S3 버킷명
 
 Resources:
   # --- Managed Policies ---
@@ -47,20 +43,6 @@ Resources:
               - s3:DeleteObject
             Resource: !Sub 'arn:aws:s3:::${PublicBucketName}/*'
 
-  PrivateBucketPolicy:
-    DeletionPolicy: Delete
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      ManagedPolicyName: private-bucket-policy
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Action: s3:GetObject
-            Resource: !Sub arn:aws:s3:::${ConfigBucketName}/devine-ai/.env.ai
-          - Effect: Allow
-            Action: s3:ListBucket
-            Resource: !Sub arn:aws:s3:::${ConfigBucketName}
 
   StorageLensViewerPolicy:
     DeletionPolicy: Delete
@@ -127,7 +109,7 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonRoute53FullAccess
-        - !Ref PrivateBucketPolicy
+
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
         - arn:aws:iam::aws:policy/CloudFrontFullAccess
         - arn:aws:iam::aws:policy/AmazonEC2FullAccess

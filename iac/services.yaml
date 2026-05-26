@@ -333,17 +333,6 @@ Resources:
       ResourceRecords:
         - '"google-site-verification=4ujgptFTEbAAGIUeltaCI0CFissiwb2U1-Au0LDx-ss"'
 
-  # ACM 인증서 검증 - 새 계정 배포 시 새 인증서 발급 후 값 교체 필요
-  AcmValidationRecord:
-    DeletionPolicy: Delete
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: _668e812203bcc69c8d6bd41e0a8601be.devine.kr.
-      Type: CNAME
-      TTL: 300
-      ResourceRecords:
-        - _871c7b584aa487626d613a1244db8b7c.jkddzztszm.acm-validations.aws.
 
   # --- CloudWatch ---
   ProdLogGroup:

@@ -101,7 +101,7 @@ Resources:
         Environment: !Ref Environment
         PublicBucketName: !Ref PublicBucketName
         PrivateBucketName: !Ref PrivateBucketName
-        ConfigBucketName: devine-config-bucket
+
 
   ComputeStack:
     Type: AWS::CloudFormation::Stack
