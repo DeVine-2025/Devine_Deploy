@@ -321,7 +321,19 @@ Resources:
       ResourceRecords:
         - dkim2.cj530ub2rj45.clerk.services
 
-  # Google Site Verification
+  # dev - OCI 인스턴스(인증서 txt 레코드는 갱신 시 수동으로 삭제/추가)
+  DevRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: dev.devine.kr.
+      Type: A
+      TTL: 300
+      ResourceRecords:
+        - 158.180.88.177
+
+# Google Site Verification
   GoogleSiteVerificationRecord:
     DeletionPolicy: Delete
     Type: AWS::Route53::RecordSet
