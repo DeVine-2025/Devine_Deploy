@@ -76,7 +76,6 @@ Resources:
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/my-app-s3-server-role'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/devine-s3-role'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-admin'
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-user'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-s3-only'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/cloudfront.amazonaws.com/AWSServiceRoleForCloudFrontLogger'
@@ -125,7 +124,6 @@ Resources:
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/my-app-s3-server-role'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/devine-s3-role'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-admin'
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-user'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
 
   # --- CloudFront OAC ---
