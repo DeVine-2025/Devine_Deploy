@@ -13,6 +13,15 @@ REPO_URL="https://github.com/DeVine-2025/Devine_Deploy"
 DEPLOY_DIR="/home/ubuntu/Devine_Deploy"
 SERVICE_DIR="${DEPLOY_DIR}/service"
 
+# 스왑 설정 (메모리 2배) - 컨테이너 기동 전 선행 필수
+MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+SWAP_SIZE=$(( MEM_KB * 2 / 1024 / 1024 ))G
+fallocate -l "${SWAP_SIZE}" /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
 # 시스템 업데이트
 apt-get update -y && apt-get upgrade -y
 apt-get install -y ca-certificates curl gnupg git certbot awscli
@@ -29,15 +38,6 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 
 usermod -aG docker ubuntu
 systemctl enable docker && systemctl start docker
-
-# 스왑 설정 (메모리 2배)
-MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-SWAP_SIZE=$(( MEM_KB * 2 / 1024 / 1024 ))G
-fallocate -l "${SWAP_SIZE}" /swapfile
-chmod 600 /swapfile
-mkswap /swapfile
-swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 # 레포 클론
 git clone "${REPO_URL}" "${DEPLOY_DIR}"
