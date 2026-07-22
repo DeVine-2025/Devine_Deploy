@@ -6,13 +6,12 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = var.compartment_ocid
 }
 
-# 참고용: Canonical Ubuntu 22.04 최신 이미지 조회.
-# 실제 인스턴스는 재생성 방지를 위해 var.instance_image_ocid(현재 배포본) 고정 사용.
-data "oci_core_images" "ubuntu_x86" {
+# A1.Flex(ARM) 호환 Canonical Ubuntu 22.04 aarch64 최신 이미지.
+data "oci_core_images" "ubuntu_arm" {
   compartment_id           = var.compartment_ocid
   operating_system         = "Canonical Ubuntu"
   operating_system_version = "22.04"
-  shape                    = "VM.Standard.E2.1.Micro"
+  shape                    = "VM.Standard.A1.Flex"
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
 }
@@ -22,11 +21,16 @@ resource "oci_core_instance" "db" {
   availability_domain = "DGVa:AP-CHUNCHEON-1-AD-1"
   compartment_id      = var.compartment_ocid
   display_name        = "devine-dev-db"
-  shape               = "VM.Standard.E2.1.Micro"
+  shape               = "VM.Standard.A1.Flex"
+
+  shape_config {
+    ocpus         = var.instance_ocpus
+    memory_in_gbs = var.instance_memory_gbs
+  }
 
   source_details {
     source_type             = "image"
-    source_id               = var.instance_image_ocid
+    source_id               = data.oci_core_images.ubuntu_arm.images[0].id
     boot_volume_size_in_gbs = var.boot_volume_size_gb
     boot_volume_vpus_per_gb = "10"
   }
@@ -63,11 +67,16 @@ resource "oci_core_instance" "svc" {
   availability_domain = "DGVa:AP-CHUNCHEON-1-AD-1"
   compartment_id      = var.compartment_ocid
   display_name        = "devine-dev-svc"
-  shape               = "VM.Standard.E2.1.Micro"
+  shape               = "VM.Standard.A1.Flex"
+
+  shape_config {
+    ocpus         = var.instance_ocpus
+    memory_in_gbs = var.instance_memory_gbs
+  }
 
   source_details {
     source_type             = "image"
-    source_id               = var.instance_image_ocid
+    source_id               = data.oci_core_images.ubuntu_arm.images[0].id
     boot_volume_size_in_gbs = var.boot_volume_size_gb
     boot_volume_vpus_per_gb = "10"
   }

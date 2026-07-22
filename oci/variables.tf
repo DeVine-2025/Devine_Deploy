@@ -18,11 +18,21 @@ variable "boot_volume_size_gb" {
   default = 50
 }
 
-# 현재 배포된 인스턴스 이미지(Canonical Ubuntu 22.04 x86).
-# A1.Flex 전환 시 aarch64 이미지 OCID로 교체.
-variable "instance_image_ocid" {
-  type    = string
-  default = "ocid1.image.oc1.ap-chuncheon-1.aaaaaaaapowkteh6y63zv77rbifj225qz2oyvuki74zgw2l33twoglgo3x6q"
+# A1.Flex(ARM) shape 설정. 상시무료 총량은 4 OCPU / 24GB.
+# db·svc 각 1 OCPU/6GB → 합 2 OCPU/12GB (한도 내).
+variable "instance_ocpus" {
+  type    = number
+  default = 1
+}
+variable "instance_memory_gbs" {
+  type    = number
+  default = 6
+}
+
+# DB 데이터용 Block Volume 크기 (부트볼륨과 분리하여 재생성에도 데이터 보존).
+variable "db_data_volume_size_gb" {
+  type    = number
+  default = 50
 }
 
 # ── 네트워크 접근 제어 ──
