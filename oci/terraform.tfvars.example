@@ -1,0 +1,16 @@
+# OCI Provider 인증 (실제 값은 terraform.tfvars 에 두고 커밋하지 않음)
+tenancy_ocid     = "ocid1.tenancy.oc1..xxxx"
+user_ocid        = "ocid1.user.oc1..xxxx"
+fingerprint      = "xx:xx:xx:xx"
+private_key_path = "~/.oci/your-api-key.pem"
+region           = "ap-chuncheon-1"
+compartment_ocid = "ocid1.tenancy.oc1..xxxx"
+
+ssh_public_key = "ssh-ed25519 AAAA..."
+
+boot_volume_size_gb = 50
+
+ssh_allow_cidrs = ["0.0.0.0/0"]
+
+ssl_certificate_path = "/path/to/fullchain.pem"
+ssl_private_key_path = "/path/to/private.pem"
