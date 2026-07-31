@@ -9,10 +9,6 @@ Parameters:
     Type: String
   PrivateBucketName:
     Type: String
-  ConfigBucketName:
-    Type: String
-    Default: devine-config-bucket
-    Description: 설정 파일용 S3 버킷명
 
 Resources:
   # --- Managed Policies ---
@@ -47,20 +43,6 @@ Resources:
               - s3:DeleteObject
             Resource: !Sub 'arn:aws:s3:::${PublicBucketName}/*'
 
-  PrivateBucketPolicy:
-    DeletionPolicy: Delete
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      ManagedPolicyName: private-bucket-policy
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Action: s3:GetObject
-            Resource: !Sub arn:aws:s3:::${ConfigBucketName}/devine-ai/.env.ai
-          - Effect: Allow
-            Action: s3:ListBucket
-            Resource: !Sub arn:aws:s3:::${ConfigBucketName}
 
   StorageLensViewerPolicy:
     DeletionPolicy: Delete
@@ -119,33 +101,6 @@ Resources:
         - !Ref StorageLensViewerPolicy
         - arn:aws:iam::aws:policy/AdministratorAccess
 
-  DevineUser:
-    DeletionPolicy: Delete
-    Type: AWS::IAM::User
-    Properties:
-      UserName: devine-user
-      Path: /
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonRoute53FullAccess
-        - !Ref PrivateBucketPolicy
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
-        - arn:aws:iam::aws:policy/CloudFrontFullAccess
-        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
-        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
-      Policies:
-        - PolicyName: SSMSessionAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ssm:StartSession
-                  - ssm:TerminateSession
-                  - ssm:ResumeSession
-                  - ssm:DescribeSessions
-                  - ssm:GetConnectionStatus
-                Resource: '*'
-
   DevineS3OnlyUser:
     DeletionPolicy: Delete
     Type: AWS::IAM::User
@@ -155,6 +110,36 @@ Resources:
       ManagedPolicyArns:
         - !Ref DevinePrivateBucketPolicy
         - !Ref DevinePublicBucketPolicy
+
+  DevineHeoUser:
+    DeletionPolicy: Retain
+    Type: AWS::IAM::User
+    Properties:
+      UserName: devine-heo
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
+
+  DevineStrfunctionkUser:
+    DeletionPolicy: Retain
+    Type: AWS::IAM::User
+    Properties:
+      UserName: devine-strfunctionk
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
+
+  DevineSunUser:
+    DeletionPolicy: Retain
+    Type: AWS::IAM::User
+    Properties:
+      UserName: devine-sun
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
 
   DevineFormerUser:
     DeletionPolicy: Delete

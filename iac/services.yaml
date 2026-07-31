@@ -76,7 +76,6 @@ Resources:
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/my-app-s3-server-role'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/devine-s3-role'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-admin'
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-user'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-s3-only'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/cloudfront.amazonaws.com/AWSServiceRoleForCloudFrontLogger'
@@ -125,7 +124,6 @@ Resources:
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/my-app-s3-server-role'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/devine-s3-role'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-admin'
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:user/devine-user'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
 
   # --- CloudFront OAC ---
@@ -321,7 +319,19 @@ Resources:
       ResourceRecords:
         - dkim2.cj530ub2rj45.clerk.services
 
-  # Google Site Verification
+  # dev - OCI 인스턴스(인증서 txt 레코드는 갱신 시 수동으로 삭제/추가)
+  DevRecord:
+    DeletionPolicy: Delete
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: dev.devine.kr.
+      Type: A
+      TTL: 300
+      ResourceRecords:
+        - 158.180.88.177
+
+# Google Site Verification
   GoogleSiteVerificationRecord:
     DeletionPolicy: Delete
     Type: AWS::Route53::RecordSet
@@ -333,17 +343,6 @@ Resources:
       ResourceRecords:
         - '"google-site-verification=4ujgptFTEbAAGIUeltaCI0CFissiwb2U1-Au0LDx-ss"'
 
-  # ACM 인증서 검증 - 새 계정 배포 시 새 인증서 발급 후 값 교체 필요
-  AcmValidationRecord:
-    DeletionPolicy: Delete
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: _668e812203bcc69c8d6bd41e0a8601be.devine.kr.
-      Type: CNAME
-      TTL: 300
-      ResourceRecords:
-        - _871c7b584aa487626d613a1244db8b7c.jkddzztszm.acm-validations.aws.
 
   # --- CloudWatch ---
   ProdLogGroup:

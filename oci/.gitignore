@@ -1,0 +1,15 @@
+# Terraform state (인증서 개인키·콘솔 비밀번호 등 민감정보 포함)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# 변수 파일 (fingerprint·SSH키·인증서 경로 등)
+terraform.tfvars
+*.auto.tfvars
+
+# Provider 바이너리/캐시
+.terraform/
+crash.log
+
+# 예시 파일은 커밋 허용
+!terraform.tfvars.example

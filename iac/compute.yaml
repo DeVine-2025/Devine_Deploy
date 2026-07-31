@@ -16,6 +16,8 @@ Parameters:
     Type: String
   InstanceProfileName:
     Type: String
+  PrivateBucketName:
+    Type: String
 
 Resources:
   ProdEIP:
@@ -32,7 +34,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
-      ImageId: ami-0b9e484ef3edf4095
+      ImageId: ami-0596f7562954deb8e
       KeyName: !Ref KeyName
       SubnetId: !Ref PublicSubnet1Id
       SecurityGroupIds:
@@ -55,13 +57,23 @@ Resources:
           Value: devine-prod-instance
       CreditSpecification:
         CPUCredits: standard
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          apt-get update -y
+          apt-get install -y awscli
+          export PRIVATE_BUCKET_NAME="${PrivateBucketName}"
+          aws s3 cp s3://${PrivateBucketName}/scripts/setup-prod.sh /tmp/setup-prod.sh
+          chmod +x /tmp/setup-prod.sh
+          bash /tmp/setup-prod.sh >> /var/log/devine-setup.log 2>&1
 
   PrivateInstance:
     DeletionPolicy: Delete
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
-      ImageId: ami-0dd2e0d9b3702890b
+      ImageId: ami-0596f7562954deb8e
       KeyName: !Ref KeyName
       SubnetId: !Ref PrivateSubnetDbId
       SecurityGroupIds:
