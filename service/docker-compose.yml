@@ -68,6 +68,8 @@ services:
     image: ${DOCKER_USERNAME}/devine-ai:${DOCKER_IMAGE_TAG:-latest}
     container_name: devine-ai
     restart: unless-stopped
+    mem_limit: 128m
+    memswap_limit: 1536m
     expose:
       - "${FAST_PORT}"
     env_file:
