@@ -32,7 +32,6 @@ services:
       - .env
     environment:
       - TZ=Asia/Seoul
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:${API_PORT}/actuator/health"]
       interval: 30s
@@ -54,7 +53,6 @@ services:
       - .env
     environment:
       - TZ=Asia/Seoul
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:${REALTIME_PORT}/actuator/health"]
       interval: 30s
