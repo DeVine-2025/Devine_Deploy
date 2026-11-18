@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   nginx:
     image: nginx:latest
@@ -21,6 +27,7 @@ services:
         condition: service_healthy
     networks:
       - devine-network
+    logging: *default-logging
 
   api:
     image: ${DOCKER_USERNAME}/devine-api:${DOCKER_IMAGE_TAG:-latest}
@@ -43,6 +50,7 @@ services:
       - devine-network
     volumes:
       - ./logs/api:/app/logs
+    logging: *default-logging
 
   realtime:
     image: ${DOCKER_USERNAME}/devine-realtime:${DOCKER_IMAGE_TAG:-latest}
@@ -65,6 +73,7 @@ services:
       - devine-network
     volumes:
       - ./logs/realtime:/app/logs
+    logging: *default-logging
 
   ai:
     image: ${DOCKER_USERNAME}/devine-ai:${DOCKER_IMAGE_TAG:-latest}
@@ -87,6 +96,7 @@ services:
       - devine-network
     volumes:
       - ./logs/ai:/app/logs
+    logging: *default-logging
 
 networks:
   devine-network:
