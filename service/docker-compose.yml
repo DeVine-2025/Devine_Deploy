@@ -32,7 +32,6 @@ services:
       - .env
     environment:
       - TZ=Asia/Seoul
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:${API_PORT}/actuator/health"]
       interval: 30s
@@ -54,7 +53,6 @@ services:
       - .env
     environment:
       - TZ=Asia/Seoul
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:${REALTIME_PORT}/actuator/health"]
       interval: 30s
@@ -70,6 +68,8 @@ services:
     image: ${DOCKER_USERNAME}/devine-ai:${DOCKER_IMAGE_TAG:-latest}
     container_name: devine-ai
     restart: unless-stopped
+    mem_limit: 128m
+    memswap_limit: 1536m
     expose:
       - "${FAST_PORT}"
     env_file:
